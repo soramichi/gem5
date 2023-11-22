@@ -102,11 +102,55 @@ class Clocked
     }
 
     /**
+     *  in case we are vcpu (i.e. we are using periodic schedule), this funcion 
+     * computes the next cycle in which we should schedule next event.
+     *
+     * start <= next_tick <= stop    ----> do nothing
+     * else                          ----> move next_tick to next start.
+     */
+
+    Tick jumpIfNotInWorkingRegion() const
+    {
+    	Tick next_tick = tick;
+    	if(!periodicSchedule)
+    		return next_tick;
+    	if((next_tick % periodicScheduleHyperperiod) >= periodicScheduleStartTick)
+    	{
+        if((next_tick % periodicScheduleHyperperiod) <= periodicScheduleStopTick)
+        {
+          //we are in working region
+          //so we should not jump!
+          return next_tick;
+        }
+        else
+        {
+          //printf("next_tick: %d vcpuStartTick %d\n", (int)next_tick, (int)vcpuStartTick);
+          //printf("(next_tick mod vcpuHyperperiod): %d\n", (int)((next_tick % vcpuHyperperiod)));
+          //printf("%d 1-> %d\n", (int)next_tick, (int)(next_tick + vcpuHyperperiod - vcpuStopTick + vcpuStartTick));
+          return next_tick + periodicScheduleHyperperiod - periodicScheduleStopTick + periodicScheduleStartTick;
+          //return nextCycle(next_tick + (vcpuHyperperiod - next_tick % vcpuHyperperiod) + vcpuStartTick, false);
+        }
+      }
+      else
+      {
+        //printf("%d 2-> %d\n", (int)next_tick, (int)(next_tick + (vcpuStartTick - next_tick % vcpuHyperperiod)));
+        return next_tick + (periodicScheduleStartTick - next_tick % periodicScheduleHyperperiod);
+      }
+    }
+
+    /**
      * The clock domain this clocked object belongs to
      */
     ClockDomain &clockDomain;
 
   protected:
+    // Referenced https://github.com/nikoonia/gem5v/tree/master
+    // <gem5v>
+    bool periodicSchedule;
+  	Tick periodicScheduleHyperperiod;
+  	Tick periodicScheduleStartTick;
+  	Tick periodicScheduleStopTick;
+    // <gem5v>
 
     /**
      * Create a clocked object and set the clock domain based on the
@@ -210,7 +254,15 @@ class Clocked
      * the future. Precisely, the returned tick can be in the range
      *     curTick() + [clockPeriod(), 2 * clockPeriod())
      */
-    Tick nextCycle() const { return clockEdge(Cycles(1)); }
+    Tick nextCycle() const { 
+      // Referenced https://github.com/nikoonia/gem5v/tree/master
+      // <gem5v>
+      if(periodicSchedule) {
+        return clockEdge(Cycles(1)) + jumpIfNotInWorkingRegion(); // currently used by vCPU only
+      } 
+      // <gem5v>
+      return clockEdge(Cycles(1)); 
+    }
 
     uint64_t frequency() const { return sim_clock::Frequency / clockPeriod(); }
 

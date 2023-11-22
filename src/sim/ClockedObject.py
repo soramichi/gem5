@@ -49,6 +49,14 @@ class ClockedObject(SimObject):
     # parent's clock domain by default
     clk_domain = Param.ClockDomain(Parent.clk_domain, "Clock domain")
 
+    # Referenced https://github.com/nikoonia/gem5v/tree/master
+    # <gem5v>
+    periodic_schedule = Param.Bool(False, "if this should be periodicly scheduled. vCPU?")
+    periodic_schedule_hyperperiod = Param.Tick(10000, "")
+    periodic_schedule_start_tick = Param.Tick(0, "when should this clocked object (vcpu) start processing")
+    periodic_schedule_stop_tick = Param.Tick(10000, "when should this clocked object (vcpu) stop processing and schedule next event in next start")
+    # <gem5v>
+
     # Power model for this ClockedObject
     power_model = VectorParam.PowerModel([], "Power models")
 

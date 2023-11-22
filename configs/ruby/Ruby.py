@@ -211,6 +211,18 @@ def create_topology(controllers, options):
     topology = eval(f"Topo.{options.topology}(controllers)")
     return topology
 
+# Referenced https://github.com/nikoonia/gem5v/tree/master
+# <gem5v>
+def create_vtopology(controllers, options):
+    """ Called from create_system in configs/ruby/<protocol>.py
+        Must return an object which is a subclass of BaseTopology
+        found in configs/topologies/BaseTopology.py
+        This is a wrapper for the legacy topologies.
+    """
+    exec "import %s as Topo" % options.topology
+    topology = eval("Topo.%s(controllers)" % options.topology)
+    return topology
+# </gem5v>
 
 def create_system(
     options,
@@ -297,6 +309,107 @@ def create_system(
             range=system.mem_ranges[0], in_addr_map=False
         )
 
+# Referenced https://github.com/nikoonia/gem5v/tree/master
+# <gem5v>
+def create_vsystem(options, systems, total_num_cpus, total_mem_size, vm_cpus, vm_mems, vmm_cpu_matrix):
+    #we assign ruby to the first vm
+    systems[0].ruby = RubySystem(stats_filename = options.ruby_stats,
+                             no_mem_vec = options.use_map)
+    ruby = systems[0].ruby
+
+    protocol = buildEnv['PROTOCOL']
+    exec "import %s" % protocol
+    try:
+        (cpu_sequencers, dir_cntrls, topology) = \
+             eval("%s.create_vsystem(options, systems, ruby, total_num_cpus, total_mem_size, vm_cpus, vm_mems)"
+                  % protocol)
+    except:
+        print "Error: could not create sytem for ruby protocol %s" % protocol
+        raise
+
+    start_address = MemorySize("0B")
+    for (j, vm) in enumerate(systems):
+       sys_port_proxy = RubyPortProxy(ruby_system = ruby, virtualization_support = True, real_address_range = AddrRange(start_address,start_address.value+MemorySize(vm_mems[j]).value))
+       # Give the system port proxy a SimObject parent without creating a
+       # full-fledged controller
+       vm.sys_port_proxy = sys_port_proxy
+       vm.sys_port_proxy.version = j
+
+       # Connect the system port for loading of binaries etc
+       vm.system_port = vm.sys_port_proxy.slave
+       start_address.value = start_address.value + MemorySize(vm_mems[j]).value
+
+
+    #
+    # Set the network classes based on the command line options
+    #
+    if options.garnet_network == "fixed":
+        class NetworkClass(GarnetNetwork_d): pass
+        class IntLinkClass(GarnetIntLink_d): pass
+        class ExtLinkClass(GarnetExtLink_d): pass
+        class RouterClass(GarnetRouter_d): pass
+    elif options.garnet_network == "flexible":
+        class NetworkClass(GarnetNetwork): pass
+        class IntLinkClass(GarnetIntLink): pass
+        class ExtLinkClass(GarnetExtLink): pass
+        class RouterClass(GarnetRouter): pass
+    else:
+        class NetworkClass(SimpleNetwork): pass
+        class IntLinkClass(SimpleIntLink): pass
+        class ExtLinkClass(SimpleExtLink): pass
+        class RouterClass(Switch): pass
+
+
+    # Create the network topology
+    network = NetworkClass(ruby_system = ruby, topology = topology.description,
+                           routers = [], ext_links = [], int_links = [])
+    topology.makevTopology(options, network, IntLinkClass, ExtLinkClass,
+                          RouterClass, vmm_cpu_matrix)
+
+    if options.network_fault_model:
+        assert(options.garnet_network == "fixed")
+        network.enable_fault_model = True
+        network.fault_model = FaultModel()
+
+    #
+    # Loop through the directory controlers.
+    # Determine the total memory size of the ruby system and verify it is equal
+    # to physmem.  However, if Ruby memory is using sparse memory in SE
+    # mode, then the system should not back-up the memory state with
+    # the Memory Vector and thus the memory size bytes should stay at 0.
+    # Also set the numa bits to the appropriate values.
+    #
+    ruby_total_mem_size = MemorySize('0B')
+
+    dir_bits = int(math.log(options.num_dirs, 2))
+    ruby.block_size_bytes = options.cacheline_size
+    block_size_bits = int(math.log(options.cacheline_size, 2))
+
+    if options.numa_high_bit:
+        numa_bit = options.numa_high_bit
+    else:
+        # if the numa_bit is not specified, set the directory bits as the
+        # lowest bits above the block offset bits, and the numa_bit as the
+        # highest of those directory bits
+        numa_bit = block_size_bits + dir_bits - 1
+
+    for dir_cntrl in dir_cntrls:
+        # I do not remember why I have commented the bellow line out!
+        #ruby_total_mem_size.value += dir_cntrl.directory.size.value
+        dir_cntrl.directory.numa_high_bit = numa_bit
+
+    #phys_mem_size = sum(map(lambda r: r.size(), system.mem_ranges))
+    #assert(total_mem_size.value == phys_mem_size)
+
+    ruby_profiler = RubyProfiler(ruby_system = ruby,
+                                 num_of_sequencers = len(cpu_sequencers))
+    ruby.network = network
+    ruby.profiler = ruby_profiler
+    ruby.mem_size = total_mem_size
+    ruby._cpu_ruby_ports = cpu_sequencers
+    ruby.random_seed    = options.random_seed
+    return ruby
+# </gem5v>
 
 def create_directories(options, bootmem, ruby_system, system):
     dir_cntrl_nodes = []

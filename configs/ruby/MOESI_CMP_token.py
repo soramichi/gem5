@@ -67,6 +67,188 @@ def define_options(parser):
         help="allow migratory sharing for atomic only accessed blocks",
     )
 
+# Referenced https://github.com/nikoonia/gem5v/tree/master
+# <gem5v>
+def create_vsystem(options, systems, ruby_system, total_num_cpus, total_mem_size, vm_cpus, vm_mems):
+    
+    if buildEnv['PROTOCOL'] != 'MOESI_CMP_token':
+        panic("This script requires the MOESI_CMP_token protocol to be built.")
+
+    #
+    # number of tokens that the owner passes to requests so that shared blocks can
+    # respond to read requests
+    #
+    n_tokens = options.num_cpus + 1
+
+    cpu_sequencers = []
+    
+    #
+    # The ruby network creation expects the list of nodes in the system to be
+    # consistent with the NetDest list.  Therefore the l1 controller nodes must be
+    # listed before the directory nodes and directory nodes before dma nodes, etc.
+    #
+    l1_cntrl_nodes = []
+    l2_cntrl_nodes = []
+    dir_cntrl_nodes = []
+    dma_cntrl_nodes = []
+
+    #
+    # Must create the individual controllers before the network to ensure the
+    # controller constructors are called before the network constructor
+    #
+    l2_bits = int(math.log(options.num_l2caches, 2))
+    block_size_bits = int(math.log(options.cacheline_size, 2))
+    
+    cntrl_count = 0
+
+    start_address = MemorySize("0B")
+
+    for (j, vm) in enumerate(systems):
+        for i in xrange(int(vm_cpus[j])):
+            #
+            # First create the Ruby objects associated with this cpu
+            #
+            l1i_cache = L1Cache(size = options.l1i_size,
+                                assoc = options.l1i_assoc,
+                                start_index_bit = block_size_bits)
+            l1d_cache = L1Cache(size = options.l1d_size,
+                                assoc = options.l1d_assoc,
+                                start_index_bit = block_size_bits)
+
+            l1_cntrl = L1Cache_Controller(version = len(l1_cntrl_nodes),
+                                          cntrl_id = cntrl_count,
+                                          L1Icache = l1i_cache,
+                                          L1Dcache = l1d_cache,
+                                          l2_select_num_bits = l2_bits,
+                                          N_tokens = n_tokens,
+                                          retry_threshold = \
+                                            options.l1_retries,
+                                          fixed_timeout_latency = \
+                                            options.timeout_latency,
+                                          dynamic_timeout_enabled = \
+                                            not options.disable_dyn_timeouts,
+                                          no_mig_atomic = not \
+                                            options.allow_atomic_migration,
+                                          send_evictions = (
+                                              options.cpu_type == "detailed"),
+                                          transitions_per_cycle = options.ports,
+                                          ruby_system = ruby_system)
+
+            cpu_seq = RubySequencer(version = len(l1_cntrl_nodes),
+                                    icache = l1i_cache,
+                                    dcache = l1d_cache,
+                                    ruby_system = ruby_system,
+                                    virtualization_support = True,
+                                    real_address_range = AddrRange(start_address,start_address.value+MemorySize(vm_mems[j]).value))
+
+            l1_cntrl.sequencer = cpu_seq
+
+            if vm.piobus != None:
+                cpu_seq.pio_port = vm.piobus.slave
+
+            exec("ruby_system.l1_cntrl%d = l1_cntrl" % len(l1_cntrl_nodes))
+            #
+            # Add controllers and sequencers to the appropriate lists
+            #
+            cpu_sequencers.append(cpu_seq)
+            l1_cntrl_nodes.append(l1_cntrl)
+
+            cntrl_count += 1
+
+        start_address.value = start_address.value + MemorySize(vm_mems[j]).value
+        #print start_address
+
+    l2_index_start = block_size_bits + l2_bits
+
+    for i in xrange(options.num_l2caches):
+        #
+        # First create the Ruby objects associated with this cpu
+        #
+        l2_cache = L2Cache(size = options.l2_size,
+                           assoc = options.l2_assoc,
+                           start_index_bit = l2_index_start)
+
+        l2_cntrl = L2Cache_Controller(version = i,
+                                      cntrl_id = cntrl_count,
+                                      L2cache = l2_cache,
+                                      N_tokens = n_tokens,
+                                      transitions_per_cycle = options.ports,
+                                      ruby_system = ruby_system)
+        
+        exec("ruby_system.l2_cntrl%d = l2_cntrl" % i)
+        l2_cntrl_nodes.append(l2_cntrl)
+
+        cntrl_count += 1
+
+    #TODO: take care of phys_mem_size
+    phys_mem_size = total_mem_size
+    #assert(phys_mem_size % options.num_dirs == 0)
+    mem_module_size = phys_mem_size / options.num_dirs
+
+    # Run each of the ruby memory controllers at a ratio of the frequency of
+    # the ruby system
+    # clk_divider value is a fix to pass regression.
+    ruby_system.memctrl_clk_domain = DerivedClockDomain(
+                                          clk_domain=ruby_system.clk_domain,
+                                          clk_divider=3)
+
+    for i in xrange(options.num_dirs):
+        #
+        # Create the Ruby objects associated with the directory controller
+        #
+
+        mem_cntrl = RubyMemoryControl(
+                              clk_domain = ruby_system.memctrl_clk_domain,
+                              version = i,
+                              ruby_system = ruby_system)
+
+        dir_size = MemorySize('0B')
+        dir_size.value = mem_module_size
+
+        dir_cntrl = Directory_Controller(version = i,
+                                         cntrl_id = cntrl_count,
+                                         directory = \
+                                         RubyDirectoryMemory(version = i,
+                                             use_map = options.use_map,
+                                             size = dir_size),
+                                         memBuffer = mem_cntrl,
+                                         l2_select_num_bits = l2_bits,
+                                         transitions_per_cycle = options.ports,
+                                         ruby_system = ruby_system)
+
+        exec("ruby_system.dir_cntrl%d = dir_cntrl" % i)
+        dir_cntrl_nodes.append(dir_cntrl)
+
+        cntrl_count += 1
+
+    for (j, vm) in enumerate(systems):
+        for i, dma_port in enumerate(vm._dma_ports):
+            #
+            # Create the Ruby objects associated with the dma controller
+            #
+            dma_seq = DMASequencer(version = len(dma_cntrl_nodes),
+                                   ruby_system = ruby_system)
+        
+            dma_cntrl = DMA_Controller(version = len(dma_cntrl_nodes),
+                                       cntrl_id = cntrl_count,
+                                       dma_sequencer = dma_seq,
+                                       transitions_per_cycle = options.ports,
+                                       ruby_system = ruby_system)
+
+            exec("ruby_system.dma_cntrl%d = dma_cntrl" % len(dma_cntrl_nodes))
+            exec("ruby_system.dma_cntrl%d.dma_sequencer.slave = dma_port" % len(dma_cntrl_nodes))
+            dma_cntrl_nodes.append(dma_cntrl)
+            cntrl_count += 1
+
+    all_cntrls = l1_cntrl_nodes + \
+                 l2_cntrl_nodes + \
+                 dir_cntrl_nodes + \
+                 dma_cntrl_nodes
+
+    topology = create_topology(all_cntrls, options)
+
+    return (cpu_sequencers, dir_cntrl_nodes, topology)
+# </gem5v>
 
 def create_system(
     options, full_system, system, dma_ports, bootmem, ruby_system, cpus

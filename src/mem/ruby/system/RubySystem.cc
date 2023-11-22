@@ -70,11 +70,40 @@ bool RubySystem::m_randomization;
 uint32_t RubySystem::m_block_size_bytes;
 uint32_t RubySystem::m_block_size_bits;
 uint32_t RubySystem::m_memory_size_bits;
+
+// Referenced https://github.com/nikoonia/gem5v/tree/master
+// <gem5v>
+int64* RubySystem::mappedRealToMemory;
+int64* RubySystem::mappedMemoryToReal;
+int64  RubySystem::lastMappedMemory;
+// </gem5v>
+
 bool RubySystem::m_warmup_enabled = false;
 // To look forward to allowing multiple RubySystem instances, track the number
 // of RubySystems that need to be warmed up on checkpoint restore.
 unsigned RubySystem::m_systems_to_warmup = 0;
 bool RubySystem::m_cooldown_enabled = false;
+
+// Referenced https://github.com/nikoonia/gem5v/tree/master
+// <gem5v>
+Addr mapRealAddressToMemory(Addr realAddress)
+{
+    //printf("we are in and last mapped memory is %d\n", (int)lastMappedMemory);
+    if(mappedRealToMemory[realAddress >> HYPERVISOR_PAGE_LOW_ORDER_BITS] == -1)
+    {
+        mappedRealToMemory[realAddress >> HYPERVISOR_PAGE_LOW_ORDER_BITS] = lastMappedMemory;
+        mappedMemoryToReal[lastMappedMemory] = realAddress >> HYPERVISOR_PAGE_LOW_ORDER_BITS;
+        lastMappedMemory++;
+        //printf("XXX %d, mapped to %d\n", (int)(realAddress >> HYPERVISOR_PAGE_LOW_ORDER_BITS), (int)lastMappedMemory);
+    }
+    return Addr((mappedRealToMemory[realAddress >> HYPERVISOR_PAGE_LOW_ORDER_BITS] << HYPERVISOR_PAGE_LOW_ORDER_BITS) | (realAddress & (HYPERVISOR_PAGE_SIZE-1) ));
+}
+Addr mapMemoryToRealAddress(Addr memoryAddress)
+{
+        assert(memoryAddress >> HYPERVISOR_PAGE_LOW_ORDER_BITS < lastMappedMemory);
+        return Addr((mappedMemoryToReal[memoryAddress >> HYPERVISOR_PAGE_LOW_ORDER_BITS] << HYPERVISOR_PAGE_LOW_ORDER_BITS) | (memoryAddress & (HYPERVISOR_PAGE_SIZE-1) ));
+}
+// </gem5v>
 
 RubySystem::RubySystem(const Params &p)
     : ClockedObject(p), m_access_backing_store(p.access_backing_store),
@@ -89,6 +118,20 @@ RubySystem::RubySystem(const Params &p)
 
     // Resize to the size of different machine types
     m_abstract_controls.resize(MachineType_NUM);
+
+    // Referenced https://github.com/nikoonia/gem5v/tree/master
+	// <gem5v>
+    assert(p->mem_size % HYPERVISOR_PAGE_SIZE == 0);
+    printf("gowing to new\n");
+    mappedRealToMemory = new int64[(p->mem_size) >> HYPERVISOR_PAGE_LOW_ORDER_BITS];
+    mappedMemoryToReal = new int64[(p->mem_size) >> HYPERVISOR_PAGE_LOW_ORDER_BITS];
+    for(int64 i=0; i<((p->mem_size) >> HYPERVISOR_PAGE_LOW_ORDER_BITS); i++)
+    {
+            mappedRealToMemory[i] = -1;
+            mappedMemoryToReal[i] = -1;
+    }
+    lastMappedMemory = 0;
+	// </gem5v>
 
     // Collate the statistics before they are printed.
     statistics::registerDumpCallback([this]() { collateStats(); });
@@ -169,6 +212,12 @@ RubySystem::registerRequestorIDs()
 
 RubySystem::~RubySystem()
 {
+    // Referenced https://github.com/nikoonia/gem5v/tree/master
+	// <gem5v>
+    delete mappedMemoryToReal;
+    delete mappedRealToMemory;
+	// </gem5v>
+
     delete m_profiler;
 }
 
@@ -606,9 +655,19 @@ RubySystem::functionalRead(PacketPtr pkt)
 }
 #else
 bool
-RubySystem::functionalRead(PacketPtr pkt)
+// RubySystem::functionalRead(PacketPtr pkt)
+
+// Referenced https://github.com/nikoonia/gem5v/tree/master
+// <gem5v>
+RubySystem::functionalRead(PacketPtr pkt, Address realAddress)
+// </gem5v>
 {
-    Addr address(pkt->getAddr());
+    // Address address(pkt->getAddr());
+
+    // Referenced https://github.com/nikoonia/gem5v/tree/master
+    // <gem5v>
+    Address address(realAddress);
+	// </gem5v>
     Addr line_address = makeLineAddress(address);
 
     DPRINTF(RubySystem, "Functional Read request for %#x\n", address);
@@ -707,9 +766,19 @@ RubySystem::functionalRead(PacketPtr pkt)
 // and writes the data portion of those that hold the address specified
 // in the packet.
 bool
-RubySystem::functionalWrite(PacketPtr pkt)
+// RubySystem::functionalWrite(PacketPtr pkt)
+
+// Referenced https://github.com/nikoonia/gem5v/tree/master
+// <gem5v> 
+RubySystem::functionalWrite(PacketPtr pkt, Address realAddress)
+// </gem5v> 
 {
-    Addr addr(pkt->getAddr());
+    // Address address(pkt->getAddr());
+
+    // Referenced https://github.com/nikoonia/gem5v/tree/master
+    // <gem5v> 
+    Address address(realAddress);
+	// </gem5v>
     Addr line_addr = makeLineAddress(addr);
     AccessPermission access_perm = AccessPermission_NotPresent;
 

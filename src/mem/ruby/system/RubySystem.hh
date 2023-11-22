@@ -32,6 +32,12 @@
  * components of the system
  */
 
+// Referenced https://github.com/nikoonia/gem5v/tree/master
+// <gem5v>
+#define HYPERVISOR_PAGE_SIZE 4096
+#define HYPERVISOR_PAGE_LOW_ORDER_BITS 12 // 2^12 = 4K
+// <gem5v>
+
 #ifndef __MEM_RUBY_SYSTEM_RUBYSYSTEM_HH__
 #define __MEM_RUBY_SYSTEM_RUBYSYSTEM_HH__
 
@@ -100,8 +106,14 @@ class RubySystem : public ClockedObject
     void process();
     void init() override;
     void startup() override;
-    bool functionalRead(Packet *ptr);
-    bool functionalWrite(Packet *ptr);
+    // bool functionalRead(Packet *ptr);
+    // bool functionalWrite(Packet *ptr);
+
+    // Referenced https://github.com/nikoonia/gem5v/tree/master
+    // <gem5v>
+    bool functionalRead(Packet *ptr, Address realAddress);
+    bool functionalWrite(Packet *ptr, Address realAddress);
+    // </gem5v>
 
     void registerNetwork(Network*);
     void registerAbstractController(AbstractController*);

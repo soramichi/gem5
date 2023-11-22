@@ -886,3 +886,19 @@ def addFSOptions(parser):
         action="store_true",
         help="Wait for remote GDB to connect.",
     )
+
+# Referenced https://github.com/nikoonia/gem5v/tree/master
+# <gem5v>
+def AddVOptions(parser):
+    parser.add_option("--vm-cpu-placements", type="string", default="1-0:0-1",
+                      help="1-0-0.75:0-1-0:0-0-0.25 means create 3 cpus and 3 vms."\
+                      "their share has been specified")
+    parser.add_option("--vm-context-switch-hyperperiod", type="int", default=1000000000000,
+                      help="hyper period of round rubbin when scheduling vms on vcpus. default is 1sec. linux quantum is 100ms")
+    parser.add_option("--vm-context-switch-overhead", type="int",    default=6000000000,
+                      help="the default represents 6ms context switch overhead. 5993.3ns process context switch time in our tests in gem5")
+    parser.add_option("--vm-mem-sizes", type="string", default="128MB:128MB",
+                      help="128MB:256MB:64MB means assign 128MB, 256MB and 64MB to each vm")
+    parser.add_option("--vm-scripts", type="string", default=":",
+                      help="vm1 and vm2 will run s1 and s2 respectively with --vm-scripts=script1:script2")
+# </gem5v>

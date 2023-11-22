@@ -49,7 +49,12 @@ class PathSearchFunc(object):
                 try:
                     paths = os.environ[self.environment_variable].split(":")
                 except KeyError:
-                    paths = ["/dist/m5/system", "/n/poolfs/z/dist/m5/system"]
+                    # paths = ["/dist/m5/system", "/n/poolfs/z/dist/m5/system"]
+
+                    # Referenced https://github.com/nikoonia/gem5v/tree/master
+                    # <gem5v>
+                    paths = ["/dist/m5/system", "/n/poolfs/z/dist/m5/system", "/root/system"]
+                    # </gem5v>
 
                 # expand '~' and '~user' in paths
                 paths = list(map(os.path.expanduser, paths))

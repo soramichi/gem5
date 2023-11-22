@@ -181,6 +181,32 @@ class RubyPort : public ClockedObject
 
     virtual int functionalWrite(Packet *func_pkt);
 
+    // Referenced https://github.com/nikoonia/gem5v/tree/master
+    // <gem5v>
+    Addr translatePhysToReal(Addr phys)
+    {
+      if(virtualization_support)
+      {
+        //printf("XXX translating %d, start %d end %d", (int)phys, (int)real_address_range.start, (int)real_address_range.end);
+        assert(phys <= real_address_range.size());
+        return ruby_system->mapRealAddressToMemory(phys + real_address_range.start());
+      }
+      return phys;
+    }
+
+    Addr translateRealToPhys(Addr real)
+    {
+      if(virtualization_support)
+      {
+        real = ruby_system->mapMemoryToRealAddress(real);
+        assert(real < real_address_range.end);
+        assert(real >= real_address_range.start);
+        return real - real_address_range.start();
+      }
+      return real;
+    }
+    // </gem5v>
+
   protected:
     void trySendRetries();
     void ruby_hit_callback(PacketPtr pkt);
@@ -205,6 +231,11 @@ class RubyPort : public ClockedObject
     MessageBuffer* m_mandatory_q_ptr;
     bool m_usingRubyTester;
     System* system;
+    // Referenced https://github.com/nikoonia/gem5v/tree/master
+    // <gem5v>
+    bool virtualization_support;
+    AddrRange real_address_range;
+    // </gem5v>
 
     std::vector<MemResponsePort *> response_ports;
 

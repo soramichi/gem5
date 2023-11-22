@@ -85,6 +85,11 @@ class RubyPort(ClockedObject):
     no_retry_on_stall = Param.Bool(False, "")
     ruby_system = Param.RubySystem(Parent.any, "")
     system = Param.System(Parent.any, "system object")
+    # Reference https://github.com/nikoonia/gem5v/tree/master
+    # <gem5v>
+    virtualization_support = Param.Bool(False, "should we translate phys mem to real mem addresses?")
+    real_address_range = Param.AddrRange(AllMemory, "real memory address range")
+    # </gem5v>
     support_data_reqs = Param.Bool(True, "data cache requests supported")
     support_inst_reqs = Param.Bool(True, "inst cache requests supported")
     is_cpu_sequencer = Param.Bool(True, "connected to a cpu")
