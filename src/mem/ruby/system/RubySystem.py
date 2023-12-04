@@ -51,6 +51,8 @@ class RubySystem(ClockedObject):
     phys_mem = Param.SimpleMemory(NULL, "")
     system = Param.System(Parent.any, "system object")
 
+    mem_size = Param.MemorySize("total memory size of the system");
+    
     access_backing_store = Param.Bool(
         False,
         "Use phys_mem as the functional \

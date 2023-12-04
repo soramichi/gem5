@@ -143,15 +143,15 @@ class Clocked
      */
     ClockDomain &clockDomain;
 
-  protected:
+  protected:  
     // Referenced https://github.com/nikoonia/gem5v/tree/master
     // <gem5v>
     bool periodicSchedule;
-  	Tick periodicScheduleHyperperiod;
-  	Tick periodicScheduleStartTick;
-  	Tick periodicScheduleStopTick;
+    Tick periodicScheduleHyperperiod;
+    Tick periodicScheduleStartTick;
+    Tick periodicScheduleStopTick;
     // <gem5v>
-
+  
     /**
      * Create a clocked object and set the clock domain based on the
      * parameters.
@@ -191,8 +191,7 @@ class Clocked
      */
     virtual void clockPeriodUpdated() {}
 
-  public:
-
+  public:  
     /**
      * Update the tick to the current tick.
      */

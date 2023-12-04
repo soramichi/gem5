@@ -1104,7 +1104,8 @@ class SimObject(object, metaclass=MetaSimObject):
     def print_ini(self, ini_file):
         # Referenced https://github.com/nikoonia/gem5v/tree/master
         # <vgem5>
-        if instanceDict.has_key(self.path):
+        #if instanceDict.has_key(self.path):
+        if self.path in instanceDict:
             return
         # <vgem5>
         print("[" + self.path() + "]", file=ini_file)  # .ini section header

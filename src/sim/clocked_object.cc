@@ -44,15 +44,16 @@ namespace gem5
 {
 
 ClockedObject::ClockedObject(const ClockedObjectParams &p) :
-    SimObject(p), Clocked(*p.clk_domain), powerState(p.power_state),
+    SimObject(p), Clocked(*p.clk_domain), powerState(p.power_state)
     // Referenced https://github.com/nikoonia/gem5v/tree/master
-    // <gem5v>
-    periodicSchedule(p->periodic_schedule),
-    periodicScheduleHyperperiod(p->periodic_schedule_hyperperiod),
-    periodicScheduleStartTick(p->periodic_schedule_start_tick),
-    periodicScheduleStopTick(p->periodic_schedule_stop_tick)
-    // </gem5v>
 {
+    // <gem5v>
+    periodicSchedule = p.periodic_schedule;
+    periodicScheduleHyperperiod = p.periodic_schedule_hyperperiod;
+    periodicScheduleStartTick = p.periodic_schedule_start_tick;
+    periodicScheduleStopTick = p.periodic_schedule_stop_tick;
+    // </gem5v>
+  
     // Register the power_model with the object
     // Slightly counter-intuitively, power models need to to register with the
     // clocked object and not the power stated object because the power model

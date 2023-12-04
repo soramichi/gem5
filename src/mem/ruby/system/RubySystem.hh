@@ -106,13 +106,17 @@ class RubySystem : public ClockedObject
     void process();
     void init() override;
     void startup() override;
-    // bool functionalRead(Packet *ptr);
-    // bool functionalWrite(Packet *ptr);
+    bool functionalRead(Packet *ptr);
+    bool functionalWrite(Packet *ptr);
 
     // Referenced https://github.com/nikoonia/gem5v/tree/master
     // <gem5v>
-    bool functionalRead(Packet *ptr, Address realAddress);
-    bool functionalWrite(Packet *ptr, Address realAddress);
+  //bool functionalRead(Packet *ptr, Address realAddress);
+  //bool functionalWrite(Packet *ptr, Address realAddress);
+    bool functionalRead(Packet *ptr, Addr address);
+    bool functionalWrite(Packet *ptr, Addr address);
+    Addr mapRealAddressToMemory(Addr realAddress);
+    Addr mapMemoryToRealAddress(Addr memoryAddress);
     // </gem5v>
 
     void registerNetwork(Network*);
@@ -150,6 +154,10 @@ class RubySystem : public ClockedObject
     static uint32_t m_block_size_bytes;
     static uint32_t m_block_size_bits;
     static uint32_t m_memory_size_bits;
+
+    static int64_t* mappedRealToMemory;
+    static int64_t* mappedMemoryToReal;
+    static int64_t  lastMappedMemory;
 
     static bool m_warmup_enabled;
     static unsigned m_systems_to_warmup;

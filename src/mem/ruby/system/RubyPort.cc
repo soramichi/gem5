@@ -69,10 +69,10 @@ RubyPort::RubyPort(const Params &p)
                    p.ruby_system->getAccessBackingStore(), -1,
                    p.no_retry_on_stall),
       gotAddrRanges(p.port_interrupt_out_port_connection_count),
-      m_isCPUSequencer(p.is_cpu_sequencer)
+      m_isCPUSequencer(p.is_cpu_sequencer),
       // Referenced https://github.com/nikoonia/gem5v/tree/master
       // <gem5v>
-      virtualization_support(p->virtualization_support), real_address_range(p->real_address_range),
+      virtualization_support(p.virtualization_support), real_address_range(p.real_address_range)
       // </gem5v>
 {
     assert(m_version != -1);
@@ -424,7 +424,9 @@ RubyPort::MemResponsePort::recvFunctional(PacketPtr pkt)
 
         // Referenced https://github.com/nikoonia/gem5v/tree/master
         // <gem5v>
-        Address realAddress(ruby_port->translatePhysToReal(pkt->getAddr()));
+        //Address realAddress(ruby_port->translatePhysToReal(pkt->getAddr()));
+	//Addr realAddress = ruby_port->translatePhysToReal(pkt->getAddr());
+	Addr realAddress = owner.translatePhysToReal(pkt->getAddr());
         // </gem5v>
 
         if (pkt->isRead()) {

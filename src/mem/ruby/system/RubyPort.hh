@@ -189,7 +189,8 @@ class RubyPort : public ClockedObject
       {
         //printf("XXX translating %d, start %d end %d", (int)phys, (int)real_address_range.start, (int)real_address_range.end);
         assert(phys <= real_address_range.size());
-        return ruby_system->mapRealAddressToMemory(phys + real_address_range.start());
+	RubySystem *rs = m_ruby_system;
+        return rs->mapRealAddressToMemory(phys + real_address_range.start());
       }
       return phys;
     }
@@ -198,9 +199,10 @@ class RubyPort : public ClockedObject
     {
       if(virtualization_support)
       {
-        real = ruby_system->mapMemoryToRealAddress(real);
-        assert(real < real_address_range.end);
-        assert(real >= real_address_range.start);
+	RubySystem *rs = m_ruby_system;
+        real = rs->mapMemoryToRealAddress(real);
+        assert(real < real_address_range.end());
+        assert(real >= real_address_range.start());
         return real - real_address_range.start();
       }
       return real;
