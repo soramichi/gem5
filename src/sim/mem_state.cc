@@ -265,8 +265,10 @@ MemState::unmapRegion(Addr start_addr, Addr length)
     }
 
     do {
-        if (!_ownerProcess->pTable->isUnmapped(start_addr, _pageBytes))
+        if (!_ownerProcess->pTable->isUnmapped(start_addr, _pageBytes)) {
+  	    _ownerProcess->deallocateMem(start_addr, _pageBytes);
             _ownerProcess->pTable->unmap(start_addr, _pageBytes);
+	}
 
         start_addr += _pageBytes;
 

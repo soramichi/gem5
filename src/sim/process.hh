@@ -120,6 +120,8 @@ class Process : public SimObject
     // requested, and may configure more if necessary.
     void allocateMem(Addr vaddr, int64_t size, bool clobber=false);
 
+    void deallocateMem(Addr vaddr, int64_t size);
+  
     /// Attempt to fix up a fault at vaddr by allocating a page on the stack.
     /// @return Whether the fault has been fixed.
     bool fixupFault(Addr vaddr);

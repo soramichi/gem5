@@ -344,6 +344,24 @@ Process::allocateMem(Addr vaddr, int64_t size, bool clobber)
 }
 
 void
+Process::deallocateMem(Addr vaddr, int64_t size) {
+  const auto page_size = pTable->pageSize();
+  assert(size == page_size);
+  // retrieve the paddr for this vaddr
+  const Addr page_addr = roundDown(vaddr, page_size);
+  const EmulationPageTable::Entry *pte = pTable->lookup(page_addr);
+
+  if (pte) {
+    const Addr paddr = pte->paddr;
+    const int npages = divCeil(size, page_size);
+    seWorkload->deallocPhysPages(paddr, npages);
+  }
+  else {
+    // do nothing
+  }
+}
+
+void
 Process::replicatePage(Addr vaddr, Addr new_paddr, ThreadContext *old_tc,
                        ThreadContext *new_tc, bool allocate_page)
 {

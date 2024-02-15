@@ -43,6 +43,7 @@ MemPool::MemPool(Addr page_shift, Addr ptr, Addr limit)
         _totalPages((limit - ptr) >> page_shift)
 {
     gem5_assert(_totalPages > 0);
+    page_used = std::vector<bool>(_totalPages);
 }
 
 Counter
@@ -110,17 +111,33 @@ MemPool::totalBytes() const
 {
     return totalPages() << pageShift;
 }
+  
+Addr MemPool::allocate(Addr npages) {
+  assert(npages == Addr(1));
 
-Addr
-MemPool::allocate(Addr npages)
-{
-    Addr return_addr = freePageAddr();
-    freePageNum += npages;
+  for(size_t i = 0; i < page_used.size(); i++) {
+    if (page_used[i] == false) {
+      page_used[i] = true;
+      return Addr(i << pageShift);
+    }
+  }
 
-    fatal_if(freePages() <= 0,
-            "Out of memory, please increase size of physical memory.");
+  return 0;
+}
 
-    return return_addr;
+void MemPool::deallocate(Addr start, Addr npages) {
+  assert(npages == Addr(1));
+  assert(((start >> pageShift) << pageShift) == start);
+  
+  size_t i = (start >> pageShift);
+
+  if (page_used[i] == true) {
+    page_used[i] = false;
+  }
+  else {
+    std::cout << "Fatal: tries to deallocate an unallocated physical page!" << std::endl;
+    exit(1);
+  }
 }
 
 void
@@ -154,6 +171,12 @@ MemPools::allocPhysPages(int npages, int pool_id)
     return pools[pool_id].allocate(npages);
 }
 
+void
+MemPools::deallocPhysPages(Addr start, int npages, int pool_id)
+{
+    pools[pool_id].deallocate(start, npages);
+}
+  
 Addr
 MemPools::memSize(int pool_id) const
 {
@@ -163,6 +186,7 @@ MemPools::memSize(int pool_id) const
 Addr
 MemPools::freeMemSize(int pool_id) const
 {
+
     return pools[pool_id].freeBytes();
 }
 

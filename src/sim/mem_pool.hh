@@ -56,10 +56,12 @@ class MemPool : public Serializable
     /** The size of the pool, in number of pages. */
     Counter _totalPages = 0;
 
+    std::vector<bool> page_used;
+ 
     MemPool() {}
 
     friend class MemPools;
-
+  
   public:
     MemPool(Addr page_shift, Addr ptr, Addr limit);
 
@@ -78,6 +80,7 @@ class MemPool : public Serializable
     Addr totalBytes() const;
 
     Addr allocate(Addr npages);
+    void deallocate(Addr start, Addr npages);
 
     void serialize(CheckpointOut &cp) const override;
     void unserialize(CheckpointIn &cp) override;
@@ -98,6 +101,8 @@ class MemPools : public Serializable
     /// Allocate npages contiguous unused physical pages.
     /// @return Starting address of first page
     Addr allocPhysPages(int npages, int pool_id=0);
+
+    void deallocPhysPages(Addr start, int npages, int pool_id=0);
 
     /** Amount of physical memory that exists in a pool. */
     Addr memSize(int pool_id=0) const;

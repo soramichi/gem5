@@ -77,6 +77,12 @@ SEWorkload::allocPhysPages(int npages, int pool_id)
     return memPools.allocPhysPages(npages, pool_id);
 }
 
+void
+SEWorkload::deallocPhysPages(Addr start, int npages, int pool_id)
+{
+    memPools.deallocPhysPages(start, npages, pool_id);
+}
+
 Addr
 SEWorkload::memSize(int pool_id) const
 {
