@@ -40,7 +40,14 @@
 
 namespace gem5
 {
-
+  
+struct buddy {
+  size_t size;
+  Addr start;
+  struct buddy* next;
+  struct buddy* prev;
+};
+  
 /** Class for handling allocation of physical pages in SE mode. */
 class MemPool : public Serializable
 {
@@ -56,12 +63,15 @@ class MemPool : public Serializable
     /** The size of the pool, in number of pages. */
     Counter _totalPages = 0;
 
-    std::vector<bool> page_used;
- 
+    struct buddy* list_heads[11];
+  
     MemPool() {}
 
     friend class MemPools;
-  
+
+    struct buddy* find_buddy(int order);
+    void insert_buddy(struct buddy* b, int order);
+
   public:
     MemPool(Addr page_shift, Addr ptr, Addr limit);
 
@@ -85,14 +95,14 @@ class MemPool : public Serializable
     void serialize(CheckpointOut &cp) const override;
     void unserialize(CheckpointIn &cp) override;
 };
-
+  
 class MemPools : public Serializable
 {
   private:
     Addr pageShift;
 
     std::vector<MemPool> pools;
-
+  
   public:
     MemPools(Addr page_shift) : pageShift(page_shift) {}
 
